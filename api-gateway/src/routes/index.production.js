@@ -1,12 +1,119 @@
 const express = require('express');
 const { createProxy } = require('../middleware/createProxy.production');
 const services = require('../config/services.production');
+const axios = require('axios');
 
 const router = express.Router();
 
 router.use((req, res, next) => {
   console.log('[api-gateway] router hit', req.method, req.originalUrl, 'query:', req.query);
   next();
+});
+
+// Health check routes for all services
+router.get('/health/all', async (req, res) => {
+  const healthChecks = await Promise.allSettled([
+    axios.get(`${services.authServiceUrl}/health`, { timeout: 5000 }),
+    axios.get(`${services.productServiceUrl}/health`, { timeout: 5000 }),
+    axios.get(`${services.cartServiceUrl}/health`, { timeout: 5000 }),
+    axios.get(`${services.orderServiceUrl}/health`, { timeout: 5000 }),
+    axios.get(`${services.paymentServiceUrl}/health`, { timeout: 5000 }),
+    axios.get(`${services.liveServiceUrl}/health`, { timeout: 5000 }),
+    axios.get(`${services.wishlistServiceUrl}/health`, { timeout: 5000 }),
+    axios.get(`${services.userServiceUrl}/health`, { timeout: 5000 })
+  ]);
+
+  const results = {
+    auth: healthChecks[0].status === 'fulfilled' ? healthChecks[0].value.data : { status: 'error', error: healthChecks[0].reason?.message },
+    product: healthChecks[1].status === 'fulfilled' ? healthChecks[1].value.data : { status: 'error', error: healthChecks[1].reason?.message },
+    cart: healthChecks[2].status === 'fulfilled' ? healthChecks[2].value.data : { status: 'error', error: healthChecks[2].reason?.message },
+    order: healthChecks[3].status === 'fulfilled' ? healthChecks[3].value.data : { status: 'error', error: healthChecks[3].reason?.message },
+    payment: healthChecks[4].status === 'fulfilled' ? healthChecks[4].value.data : { status: 'error', error: healthChecks[4].reason?.message },
+    live: healthChecks[5].status === 'fulfilled' ? healthChecks[5].value.data : { status: 'error', error: healthChecks[5].reason?.message },
+    wishlist: healthChecks[6].status === 'fulfilled' ? healthChecks[6].value.data : { status: 'error', error: healthChecks[6].reason?.message },
+    user: healthChecks[7].status === 'fulfilled' ? healthChecks[7].value.data : { status: 'error', error: healthChecks[7].reason?.message }
+  };
+
+  const allHealthy = Object.values(results).every(r => r.status === 'ok');
+
+  res.status(allHealthy ? 200 : 503).json({
+    status: allHealthy ? 'ok' : 'degraded',
+    services: results,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Individual service health checks
+router.get('/health/auth', async (req, res) => {
+  try {
+    const response = await axios.get(`${services.authServiceUrl}/health`, { timeout: 5000 });
+    res.json(response.data);
+  } catch (error) {
+    res.status(503).json({ status: 'error', service: 'auth-service', error: error.message });
+  }
+});
+
+router.get('/health/products', async (req, res) => {
+  try {
+    const response = await axios.get(`${services.productServiceUrl}/health`, { timeout: 5000 });
+    res.json(response.data);
+  } catch (error) {
+    res.status(503).json({ status: 'error', service: 'product-service', error: error.message });
+  }
+});
+
+router.get('/health/cart', async (req, res) => {
+  try {
+    const response = await axios.get(`${services.cartServiceUrl}/health`, { timeout: 5000 });
+    res.json(response.data);
+  } catch (error) {
+    res.status(503).json({ status: 'error', service: 'cart-service', error: error.message });
+  }
+});
+
+router.get('/health/orders', async (req, res) => {
+  try {
+    const response = await axios.get(`${services.orderServiceUrl}/health`, { timeout: 5000 });
+    res.json(response.data);
+  } catch (error) {
+    res.status(503).json({ status: 'error', service: 'order-service', error: error.message });
+  }
+});
+
+router.get('/health/payments', async (req, res) => {
+  try {
+    const response = await axios.get(`${services.paymentServiceUrl}/health`, { timeout: 5000 });
+    res.json(response.data);
+  } catch (error) {
+    res.status(503).json({ status: 'error', service: 'payment-service', error: error.message });
+  }
+});
+
+router.get('/health/live', async (req, res) => {
+  try {
+    const response = await axios.get(`${services.liveServiceUrl}/health`, { timeout: 5000 });
+    res.json(response.data);
+  } catch (error) {
+    res.status(503).json({ status: 'error', service: 'live-service', error: error.message });
+  }
+});
+
+router.get('/health/wishlist', async (req, res) => {
+  try {
+    const response = await axios.get(`${services.wishlistServiceUrl}/health`, { timeout: 5000 });
+    res.json(response.data);
+  } catch (error) {
+    res.status(503).json({ status: 'error', service: 'wishlist-service', error: error.message });
+  }
+});
+
+router.get('/health/users', async (req, res) => {
+  try {
+    const response = await axios.get(`${services.userServiceUrl}/health`, { timeout: 5000 });
+    res.json(response.data);
+  } catch (error) {
+    res.status(503).json({ status: 'error', service: 'user-service', error: error.message });
+  }
 });
 
 // Auth Service Routes — path may be /admin-login (after /auth strip); auth-service expects /auth/admin-login

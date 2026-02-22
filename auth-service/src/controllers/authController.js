@@ -573,6 +573,15 @@ module.exports = {
   register,
   login,
   adminLogin,
-  superAdminLogin,
-  getAdminProfile
+  getAdminProfile,
+  listAdmins,
+  createAdmin,
+  deleteAdmin,
+  updateAdmin,
+  me,
+  updateProfile,
+  logout,
+  forgotPassword,
+  resetPassword,
+  verifyEmail
 };
