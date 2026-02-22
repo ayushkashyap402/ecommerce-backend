@@ -1,0 +1,116 @@
+const cloudinary = require('../config/cloudinary');
+
+/**
+ * Get Cloudinary folder path based on category
+ * @param {string} category - Product category
+ * @returns {string} - Cloudinary folder path
+ */
+const getCategoryFolder = (category) => {
+  if (!category) {
+    return 'OutfitGo/products/uncategorized';
+  }
+  
+  // Normalize category name
+  const normalizedCategory = category.toLowerCase().replace(/\s+/g, '');
+  
+  // Map categories to folder names
+  const folderMap = {
+    'menswear': 'OutfitGo/products/menswear',
+    'womenswear': 'OutfitGo/products/womenswear',
+    'kidswear': 'OutfitGo/products/kidswear',
+    'winterwear': 'OutfitGo/products/winterwear',
+    'summerwear': 'OutfitGo/products/summerwear',
+  };
+  
+  return folderMap[normalizedCategory] || `OutfitGo/products/${normalizedCategory}`;
+};
+
+/**
+ * Upload image to Cloudinary with category-based folder
+ * @param {string} base64Image - Base64 encoded image string
+ * @param {string} category - Product category for folder organization
+ * @returns {Promise<Object>} - Cloudinary upload response
+ */
+const uploadImage = async (base64Image, category = null) => {
+  try {
+    const folder = getCategoryFolder(category);
+    
+    const result = await cloudinary.uploader.upload(base64Image, {
+      folder: folder,
+      resource_type: 'auto',
+      transformation: [
+        { width: 1000, height: 1000, crop: 'limit' }, // Max dimensions
+        { quality: 'auto:good' }, // Auto quality optimization
+        { fetch_format: 'auto' }, // Auto format (WebP when supported)
+      ],
+    });
+
+    return {
+      url: result.secure_url,
+      publicId: result.public_id,
+      width: result.width,
+      height: result.height,
+      format: result.format,
+      folder: folder,
+    };
+  } catch (error) {
+    console.error('Cloudinary upload error:', error);
+    throw new Error('Failed to upload image to Cloudinary');
+  }
+};
+
+/**
+ * Delete image from Cloudinary
+ * @param {string} publicId - Cloudinary public ID
+ * @returns {Promise<Object>} - Cloudinary delete response
+ */
+const deleteImage = async (publicId) => {
+  try {
+    const result = await cloudinary.uploader.destroy(publicId);
+    return result;
+  } catch (error) {
+    console.error('Cloudinary delete error:', error);
+    throw new Error('Failed to delete image from Cloudinary');
+  }
+};
+
+/**
+ * Upload multiple images to Cloudinary with category-based folder
+ * @param {Array<string>} base64Images - Array of base64 encoded images
+ * @param {string} category - Product category for folder organization
+ * @returns {Promise<Array<Object>>} - Array of upload results
+ */
+const uploadMultipleImages = async (base64Images, category = null) => {
+  try {
+    const uploadPromises = base64Images.map((image) => uploadImage(image, category));
+    const results = await Promise.all(uploadPromises);
+    return results;
+  } catch (error) {
+    console.error('Multiple images upload error:', error);
+    throw new Error('Failed to upload multiple images');
+  }
+};
+
+/**
+ * Delete multiple images from Cloudinary
+ * @param {Array<string>} publicIds - Array of Cloudinary public IDs
+ * @returns {Promise<Array<Object>>} - Array of delete results
+ */
+const deleteMultipleImages = async (publicIds) => {
+  try {
+    const deletePromises = publicIds.map((publicId) => deleteImage(publicId));
+    const results = await Promise.all(deletePromises);
+    return results;
+  } catch (error) {
+    console.error('Multiple images delete error:', error);
+    throw new Error('Failed to delete multiple images');
+  }
+};
+
+module.exports = {
+  uploadImage,
+  deleteImage,
+  uploadMultipleImages,
+  deleteMultipleImages,
+  getCategoryFolder,
+};

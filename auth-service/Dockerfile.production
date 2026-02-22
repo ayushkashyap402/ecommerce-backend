@@ -1,0 +1,39 @@
+# ----------- BUILD STAGE -----------
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+
+# Install ALL dependencies (safer)
+RUN npm ci
+
+# ----------- PRODUCTION STAGE -----------
+FROM node:18-alpine AS production
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Create non-root user
+RUN addgroup -S nodejs && adduser -S nodejs -G nodejs
+
+WORKDIR /app
+
+# Copy dependencies from builder
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy source files
+COPY --chown=nodejs:nodejs . .
+
+# Switch to non-root user
+USER nodejs
+
+# Expose service port
+EXPOSE 4001
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:4001/health || exit 1
+
+# Start app
+CMD ["node", "src/server.js"]

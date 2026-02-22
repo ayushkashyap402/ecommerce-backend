@@ -1,0 +1,116 @@
+# ========================================
+# Backend - .gitignore
+# ========================================
+
+# ==================== CRITICAL SECURITY ====================
+# Environment Variables - NEVER COMMIT
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+.env.example
+
+# ==================== Node.js ====================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# ==================== Docker ====================
+# Docker volumes and data
+docker-compose.override.yml
+.docker/
+
+# ==================== Database ====================
+# MongoDB dumps
+*.dump
+dump/
+*.bson
+
+# ==================== Logs ====================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==================== IDE ====================
+# VSCode
+.vscode/
+*.code-workspace
+
+# JetBrains
+.idea/
+*.iml
+
+# ==================== OS ====================
+# macOS
+.DS_Store
+._*
+
+# Windows
+Thumbs.db
+*.stackdump
+[Dd]esktop.ini
+
+# Linux
+*~
+.directory
+
+# ==================== Temporary Files ====================
+*.tmp
+*.temp
+*.swp
+*.swo
+.cache/
+tmp/
+temp/
+
+# ==================== Build Outputs ====================
+dist/
+build/
+coverage/
+
+# ==================== Service Specific ====================
+# Each service's .env
+auth-service/.env
+auth-service/.env.local
+auth-service/.env.production
+
+product-service/.env
+product-service/.env.local
+product-service/.env.production
+
+cart-service/.env
+cart-service/.env.local
+cart-service/.env.production
+
+order-service/.env
+order-service/.env.local
+order-service/.env.production
+
+live-service/.env
+live-service/.env.local
+live-service/.env.production
+
+api-gateway/.env
+api-gateway/.env.local
+api-gateway/.env.production
+
+deployment_checklist.md
+
+render_deployment.md
+
+render.yaml

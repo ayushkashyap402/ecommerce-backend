@@ -1,0 +1,220 @@
+version: '3.9'
+
+services:
+  # API Gateway - Only exposed service
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - '0.0.0.0:8080:8080'
+    env_file:
+      - ./api-gateway/.env.production
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003
+      AUTH_SERVICE_URL: http://auth-service:4001
+      PRODUCT_SERVICE_URL: http://product-service:4002
+      CART_SERVICE_URL: http://cart-service:4003
+      ORDER_SERVICE_URL: http://order-service:4004
+      PAYMENT_SERVICE_URL: http://payment-service:4005
+      LIVE_SERVICE_URL: http://live-service:4006
+      WISHLIST_SERVICE_URL: http://wishlist-service:4007
+      USER_SERVICE_URL: http://user-service:4008
+    depends_on:
+      - auth-service
+      - product-service
+      - cart-service
+      - order-service
+      - payment-service
+      - live-service
+      - wishlist-service
+      - user-service
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --spider http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Internal Services - Port bindings for debugging/testing
+  auth-service:
+    build: ./auth-service
+    ports:
+      - '4001:4001'
+    env_file:
+      - ./auth-service/.env
+    environment:
+      NODE_ENV: production
+      PORT: 4001
+      MONGO_URI: ${AUTH_MONGO_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --spider http://localhost:4001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  product-service:
+    build: ./product-service
+    ports:
+      - '4002:4002'
+    env_file:
+      - ./product-service/.env
+    environment:
+      NODE_ENV: production
+      PORT: 4002
+      MONGO_URI: ${PRODUCT_MONGO_URI}
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --spider http://localhost:4002/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  cart-service:
+    build: ./cart-service
+    ports:
+      - '4003:4003'
+    env_file:
+      - ./cart-service/.env
+    environment:
+      NODE_ENV: production
+      PORT: 4003
+      MONGO_URI: ${CART_MONGO_URI}
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --spider http://localhost:4003/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  order-service:
+    build: ./order-service
+    ports:
+      - '4004:4004'
+    env_file:
+      - ./order-service/.env
+    environment:
+      NODE_ENV: production
+      PORT: 4004
+      MONGO_URI: ${ORDER_MONGO_URI}
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --spider http://localhost:4004/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  payment-service:
+    build: ./payment-service
+    ports:
+      - '4005:4005'
+    env_file:
+      - ./payment-service/.env
+    environment:
+      NODE_ENV: production
+      PORT: 4005
+      MONGO_URI: ${PAYMENT_MONGO_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET}
+      ORDER_SERVICE_URL: http://order-service:4004
+      CURRENCY: INR
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --spider http://localhost:4005/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  live-service:
+    build: ./live-service
+    ports:
+      - '4006:4006'
+    env_file:
+      - ./live-service/.env
+    environment:
+      NODE_ENV: production
+      PORT: 4006
+      MONGO_URI: ${LIVE_MONGO_URI}
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --spider http://localhost:4006/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  wishlist-service:
+    build: ./wishlist-service
+    ports:
+      - '4007:4007'
+    env_file:
+      - ./wishlist-service/.env
+    environment:
+      NODE_ENV: production
+      PORT: 4007
+      MONGO_URI: ${WISHLIST_MONGO_URI}
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --spider http://localhost:4007/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  user-service:
+    build: ./user-service
+    ports:
+      - '4008:4008'
+    env_file:
+      - ./user-service/.env
+    environment:
+      NODE_ENV: production
+      PORT: 4008
+      MONGO_URI: ${USER_MONGO_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      CLOUDINARY_NAME: ${CLOUDINARY_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      AUTH_SERVICE_URL: http://auth-service:4001
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4008/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  microservices-network:
+    driver: bridge
+    name: outfitgo-microservices
