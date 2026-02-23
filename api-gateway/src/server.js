@@ -78,7 +78,9 @@ app.use(
       }
 
       console.log('[CORS] Blocked origin:', origin);
-      return callback(null, false); // ❗ no error throwing
+
+      // ❌ DO NOT throw error
+      return callback(null, false);
     },
     credentials: true,
   })
