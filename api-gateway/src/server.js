@@ -69,22 +69,16 @@ console.log('[api-gateway] CORS Allowed Origins:', allowedOrigins);
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (mobile apps, server-to-server)
-      if (!origin) {
-        return callback(null, true);
-      }
+      if (!origin) return callback(null, true);
 
-      // Normalize origin (remove trailing slash)
       const normalizedOrigin = origin.replace(/\/$/, '');
 
-      // Check if origin is allowed
-      if (allowedOrigins.length === 0 || allowedOrigins.includes(normalizedOrigin)) {
+      if (allowedOrigins.includes(normalizedOrigin)) {
         return callback(null, true);
       }
 
-      // Origin not allowed
       console.log('[CORS] Blocked origin:', origin);
-      return callback(new Error('Not allowed by CORS'));
+      return callback(null, false); // ❗ no error throwing
     },
     credentials: true,
   })
