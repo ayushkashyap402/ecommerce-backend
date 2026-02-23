@@ -59,58 +59,46 @@ app.use(limiter);
    CORS
 ================================ */
 
-// Default allowed origins
-const defaultOrigins = [
+const allowedOrigins = [
   'http://localhost:3000',
-  'http://localhost:5173',
   'https://ecommerce-admin-panel-zbqi.onrender.com',
 ];
 
-// Get origins from environment variable or use defaults
-const allowedOrigins = process.env.CORS_ORIGINS 
-  ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
-  : defaultOrigins;
+// Add custom origins from environment variable if provided
+if (process.env.CORS_ORIGINS) {
+  const customOrigins = process.env.CORS_ORIGINS
+    .split(',')
+    .map(o => o.trim().replace(/\/$/, '')) // Remove trailing slash
+    .filter(Boolean);
+  allowedOrigins.push(...customOrigins);
+}
 
 console.log('[api-gateway] CORS Configuration:');
 console.log('[api-gateway] Allowed Origins:', allowedOrigins);
-console.log('[api-gateway] Environment:', process.env.NODE_ENV || 'development');
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Log the incoming origin for debugging
-      if (origin) {
-        console.log('[CORS] Request from origin:', origin);
-      }
-
-      // Allow requests with no origin (mobile apps, Postman, curl, server-to-server)
+      console.log('[CORS] Request from origin:', origin);
+      
       if (!origin) {
         console.log('[CORS] Allowing request with no origin (mobile/server)');
         return callback(null, true);
       }
-
-      // Check if origin is in allowed list
-      if (allowedOrigins.includes(origin)) {
+      
+      // Remove trailing slash from origin for comparison
+      const normalizedOrigin = origin.replace(/\/$/, '');
+      
+      if (allowedOrigins.includes(normalizedOrigin)) {
         console.log('[CORS] Origin allowed:', origin);
         return callback(null, true);
       }
-
-      // Check for wildcard
-      if (allowedOrigins.includes('*')) {
-        console.log('[CORS] Wildcard enabled, allowing all origins');
-        return callback(null, true);
-      }
-
-      // Origin not allowed
+      
       console.log('[CORS] Origin BLOCKED:', origin);
       console.log('[CORS] Allowed origins are:', allowedOrigins);
-      callback(new Error('Not allowed by CORS'));
+      return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposedHeaders: ['Content-Range', 'X-Content-Range'],
-    maxAge: 600, // Cache preflight requests for 10 minutes
   })
 );
 
