@@ -59,33 +59,19 @@ app.use(limiter);
    CORS
 ================================ */
 
-const allowedOrigins = (
-  process.env.CORS_ORIGINS || 'http://localhost:3000'
-)
-  .split(',')
-  .map(o => o.trim())
-  .filter(Boolean);
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://ecommerce-admin-panel-zbqi.onrender.com',
+];
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
-      if (!origin) {
-        return callback(null, true);
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
       }
-      
-      // Allow all origins in development
-      if (process.env.NODE_ENV !== 'production') {
-        return callback(null, true);
-      }
-      
-      // In production, check allowed origins
-      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-        return callback(null, true);
-      }
-      
-      console.log('[CORS] Blocked origin:', origin);
-      return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
   })
