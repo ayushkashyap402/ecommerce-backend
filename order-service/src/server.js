@@ -1,6 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const { connectDb } = require('./config/db');
@@ -11,23 +10,7 @@ const app = express();
 
 app.use(helmet());
 
-const allowedOrigins = (
-  process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:8080'
-)
-  .split(',')
-  .map(o => o.trim())
-  .filter(Boolean);
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like from API Gateway or mobile apps)
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(null, true); // Allow all in development
-    },
-    credentials: true,
+// Note: CORS is handled by API Gateway
   })
 );
 app.use(express.json());

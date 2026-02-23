@@ -1,6 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const connectDB = require('./config/db');
 const paymentRoutes = require('./routes/paymentRoutes');
 
@@ -10,8 +9,9 @@ const PORT = process.env.PORT || 4005;
 // Connect to MongoDB
 connectDB();
 
+// Note: CORS is handled by API Gateway
+
 // Middleware
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
