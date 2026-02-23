@@ -41,28 +41,31 @@ app.use(limiter);
    CORS
 ================================ */
 
-const allowedOrigins = (
-  process.env.CORS_ORIGINS || 'http://localhost:3000'
-)
-  .split(',')
-  .map(o => o.trim())
-  .filter(Boolean);
+// Get allowed origins from environment variable
+const allowedOrigins = process.env.CORS_ORIGINS 
+  ? process.env.CORS_ORIGINS.split(',').map(o => o.trim().replace(/\/$/, '')).filter(Boolean)
+  : [];
+
+console.log('[api-gateway] CORS Allowed Origins:', allowedOrigins);
 
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.)
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, server-to-server)
       if (!origin) {
         return callback(null, true);
       }
-      // Allow configured origins
-      if (allowedOrigins.includes(origin)) {
+
+      // Normalize origin (remove trailing slash)
+      const normalizedOrigin = origin.replace(/\/$/, '');
+
+      // Check if origin is allowed
+      if (allowedOrigins.length === 0 || allowedOrigins.includes(normalizedOrigin)) {
         return callback(null, true);
       }
-      // In development, allow all origins
-      if (process.env.NODE_ENV !== 'production') {
-        return callback(null, true);
-      }
+
+      // Origin not allowed
+      console.log('[CORS] Blocked origin:', origin);
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
@@ -156,7 +159,7 @@ app.use((err, req, res, next) => {
    SERVER START
 ================================ */
 
-const port = process.env.PORT || 8080;
+const port = process.env.PORT;
 
 const server = app.listen(port, () => {
   console.log(`[api-gateway] listening on port ${port}`);
