@@ -59,43 +59,31 @@ app.use(limiter);
    CORS
 ================================ */
 
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://ecommerce-admin-panel-zbqi.onrender.com',
-];
+// Get allowed origins from environment variable
+const allowedOrigins = process.env.CORS_ORIGINS 
+  ? process.env.CORS_ORIGINS.split(',').map(o => o.trim().replace(/\/$/, '')).filter(Boolean)
+  : [];
 
-// Add custom origins from environment variable if provided
-if (process.env.CORS_ORIGINS) {
-  const customOrigins = process.env.CORS_ORIGINS
-    .split(',')
-    .map(o => o.trim().replace(/\/$/, '')) // Remove trailing slash
-    .filter(Boolean);
-  allowedOrigins.push(...customOrigins);
-}
-
-console.log('[api-gateway] CORS Configuration:');
-console.log('[api-gateway] Allowed Origins:', allowedOrigins);
+console.log('[api-gateway] CORS Allowed Origins:', allowedOrigins);
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      console.log('[CORS] Request from origin:', origin);
-      
+      // Allow requests with no origin (mobile apps, server-to-server)
       if (!origin) {
-        console.log('[CORS] Allowing request with no origin (mobile/server)');
         return callback(null, true);
       }
-      
-      // Remove trailing slash from origin for comparison
+
+      // Normalize origin (remove trailing slash)
       const normalizedOrigin = origin.replace(/\/$/, '');
-      
-      if (allowedOrigins.includes(normalizedOrigin)) {
-        console.log('[CORS] Origin allowed:', origin);
+
+      // Check if origin is allowed
+      if (allowedOrigins.length === 0 || allowedOrigins.includes(normalizedOrigin)) {
         return callback(null, true);
       }
-      
-      console.log('[CORS] Origin BLOCKED:', origin);
-      console.log('[CORS] Allowed origins are:', allowedOrigins);
+
+      // Origin not allowed
+      console.log('[CORS] Blocked origin:', origin);
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
