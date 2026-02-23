@@ -241,11 +241,40 @@ const triggerAutoCancellation = async (req, res, next) => {
   }
 };
 
+/**
+ * Cancel order (User can cancel their own order)
+ */
+const cancelOrder = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const { reason } = req.body;
+    const userId = req.query.userId;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    if (!reason) {
+      return res.status(400).json({ message: 'Cancellation reason is required' });
+    }
+
+    const order = await orderService.cancelOrder(orderId, userId, reason);
+    
+    res.json({ 
+      message: 'Order cancelled successfully',
+      order 
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   create,
   listMine,
   getById,
   updateStatus,
+  cancelOrder,
   getStats,
   getPending,
   getAdminOrders,

@@ -69,9 +69,22 @@ const allowedOrigins = (
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) {
         return callback(null, true);
       }
+      
+      // Allow all origins in development
+      if (process.env.NODE_ENV !== 'production') {
+        return callback(null, true);
+      }
+      
+      // In production, check allowed origins
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        return callback(null, true);
+      }
+      
+      console.log('[CORS] Blocked origin:', origin);
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,

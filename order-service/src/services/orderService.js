@@ -98,6 +98,45 @@ const updateOrderStatus = async (orderId, status, userId, cancellationReason = n
   return order;
 };
 
+/**
+ * Cancel order by user
+ */
+const cancelOrder = async (orderId, userId, reason) => {
+  const order = await Order.findOne({ orderId, userId });
+  
+  if (!order) {
+    const error = new Error('Order not found');
+    error.statusCode = 404;
+    throw error;
+  }
+  
+  // Check if order can be cancelled
+  const cancellableStatuses = ['pending', 'confirmed'];
+  if (!cancellableStatuses.includes(order.status)) {
+    const error = new Error(`Cannot cancel order with status: ${order.status}`);
+    error.statusCode = 400;
+    throw error;
+  }
+  
+  // Update order status to cancelled
+  order.status = 'cancelled';
+  order.cancelledAt = new Date();
+  order.cancellationReason = reason;
+  order.cancelledBy = 'customer';
+  
+  // If payment was completed, mark for refund
+  if (order.payment.status === 'completed' || order.payment.status === 'paid') {
+    order.payment.status = 'refund_pending';
+    order.payment.refundInitiatedAt = new Date();
+  }
+  
+  await order.save();
+  
+  console.log(`✅ Order ${orderId} cancelled by user ${userId}. Reason: ${reason}`);
+  
+  return order;
+};
+
 const getStats = async ({ role, userId } = {}) => {
   let query = {};
   
@@ -358,6 +397,7 @@ module.exports = {
   listOrdersForUser,
   getOrderById,
   updateOrderStatus,
+  cancelOrder,
   getStats,
   getPendingOrders,
   getOrdersForAdmin,

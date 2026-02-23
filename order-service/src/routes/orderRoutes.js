@@ -21,6 +21,7 @@ router.get('/', controller.listMine);
 router.post('/', controller.create);
 router.get('/:orderId', controller.getById);
 router.patch('/:orderId/status', controller.updateStatus);
+router.post('/:orderId/cancel', controller.cancelOrder);
 
 module.exports = router;
 
