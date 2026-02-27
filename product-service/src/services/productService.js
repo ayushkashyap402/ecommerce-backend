@@ -74,6 +74,7 @@ const listProducts = async ({ role, userId, category, viewAsAdminId } = {}) => {
   // Manually populate createdBy from both Admin and SuperAdmin collections
   // Get all unique createdBy IDs
   const createdByIds = [...new Set(allProducts.map(p => p.createdBy).filter(Boolean))];
+  console.log('🔍 [Product Service] Unique createdBy IDs:', createdByIds);
   
   // Fetch admins and superadmins
   const [admins, superAdmins] = await Promise.all([
@@ -81,14 +82,20 @@ const listProducts = async ({ role, userId, category, viewAsAdminId } = {}) => {
     SuperAdmin.find({ _id: { $in: createdByIds } }).select('name email role').lean()
   ]);
   
+  console.log('🔍 [Product Service] Admins found:', admins.length, admins);
+  console.log('🔍 [Product Service] SuperAdmins found:', superAdmins.length, superAdmins);
+  
   // Create a map of all creators
   const creatorsMap = new Map();
   admins.forEach(a => creatorsMap.set(a._id.toString(), { name: a.name, email: a.email, role: a.role || 'admin' }));
   superAdmins.forEach(sa => creatorsMap.set(sa._id.toString(), { name: sa.name, email: sa.email, role: 'superadmin' }));
   
+  console.log('🔍 [Product Service] Creators map size:', creatorsMap.size);
+  
   // Transform products to include createdByName
   const transformedProducts = allProducts.map(p => {
     const creator = p.createdBy ? creatorsMap.get(p.createdBy.toString()) : null;
+    console.log(`🔍 [Product Transform] Product: ${p.name}, createdBy: ${p.createdBy}, creator:`, creator);
     return {
       ...p,
       createdByName: creator ? creator.name : 'Unknown',
@@ -291,6 +298,7 @@ const getStats = async ({ role, userId, viewAsAdminId } = {}) => {
   return {
     total,
     count: total,
+    totalProducts: total,
     totalValue
   };
 };

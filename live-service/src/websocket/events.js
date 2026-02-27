@@ -29,13 +29,15 @@ class LiveEvents {
     });
   }
 
-  updateStats() {
-    // Simulate stats changes
-    this.stats.activeUsers = Math.floor(Math.random() * 100) + 50;
-    this.stats.currentOrders = Math.floor(Math.random() * 20) + 5;
-    this.stats.liveRevenue = Math.floor(Math.random() * 10000) + 1000;
-    
-    socketHandler.broadcastStats(this.stats);
+  async updateStats() {
+    // Get real statistics from backend services
+    try {
+      const reelService = require('../services/reelService');
+      this.stats = await reelService.getRealStatistics();
+      socketHandler.broadcastStats(this.stats);
+    } catch (error) {
+      console.error('Error updating stats:', error.message);
+    }
   }
 
   handleOrderUpdate(orderData) {

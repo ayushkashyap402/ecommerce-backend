@@ -11,8 +11,7 @@ const app = express();
 app.use(helmet());
 
 // Note: CORS is handled by API Gateway
-  })
-);
+
 app.use(express.json());
 app.use(morgan('dev'));
 

@@ -1,5 +1,20 @@
 const mongoose = require('mongoose');
 
+// Create a separate connection for auth database
+const authDbUri = process.env.AUTH_DB_URI || process.env.MONGO_URI;
+
+console.log('🔗 [SuperAdmin Model] Connecting to auth database');
+
+const authConnection = mongoose.createConnection(authDbUri);
+
+authConnection.on('connected', () => {
+  console.log('✅ [SuperAdmin Model] Connected to auth database');
+});
+
+authConnection.on('error', (err) => {
+  console.error('❌ [SuperAdmin Model] Auth database connection error:', err);
+});
+
 const superAdminSchema = new mongoose.Schema(
   {
     name: {
@@ -39,4 +54,4 @@ const superAdminSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('SuperAdmin', superAdminSchema);
+module.exports = authConnection.model('SuperAdmin', superAdminSchema, 'super-admin');

@@ -12,7 +12,6 @@ const app = express();
 app.use(helmet());
 
 // Note: CORS is handled by API Gateway
-}));
 
 // Increase body size limit for image uploads (base64 images can be large)
 app.use(express.json({ limit: '50mb' }));

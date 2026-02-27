@@ -143,19 +143,77 @@ const getStats = async ({ role, userId } = {}) => {
   // Admin sees only orders containing their products
   if (role === 'admin' && userId) {
     query = { 'items.productCreatedBy': userId };
+    console.log('📊 [Order Stats] Admin query:', { userId, query });
   }
   // SuperAdmin sees all orders (no filter)
   
   const total = await Order.countDocuments(query);
-  const revenue = await Order.aggregate([
-    { $match: query },
-    { $group: { _id: null, total: { $sum: '$pricing.total' } } }
-  ]);
+  console.log('📊 [Order Stats] Total orders found:', total);
+  
+  // Calculate revenue (exclude cancelled orders)
+  let totalRevenue = 0;
+  const revenueQuery = { ...query, status: { $ne: 'cancelled' } }; // Exclude cancelled orders
+  
+  if (role === 'admin' && userId) {
+    // For admin, calculate revenue only from their products (non-cancelled orders)
+    const orders = await Order.find(revenueQuery);
+    console.log('📊 [Order Stats] Non-cancelled orders for admin:', orders.length);
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        if (item.productCreatedBy && item.productCreatedBy.toString() === userId.toString()) {
+          const itemRevenue = item.price * item.quantity;
+          totalRevenue += itemRevenue;
+          console.log('📊 [Order Stats] Item revenue:', { 
+            orderId: order.orderId,
+            productId: item.productId, 
+            price: item.price, 
+            quantity: item.quantity,
+            itemRevenue 
+          });
+        }
+      });
+    });
+    console.log('📊 [Order Stats] Total admin revenue:', totalRevenue);
+  } else {
+    // For superadmin, get total revenue from all non-cancelled orders
+    const revenue = await Order.aggregate([
+      { $match: revenueQuery },
+      { $group: { _id: null, total: { $sum: '$pricing.total' } } }
+    ]);
+    totalRevenue = revenue[0]?.total || 0;
+    console.log('📊 [Order Stats] SuperAdmin revenue:', totalRevenue);
+  }
+  
+  // Today's orders
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayQuery = { ...query, createdAt: { $gte: today } };
+  const todayOrders = await Order.countDocuments(todayQuery);
+  
+  // Pending orders count
+  const pendingQuery = { ...query, status: 'pending' };
+  const pendingOrders = await Order.countDocuments(pendingQuery);
+  
+  // Cancelled orders count
+  const cancelledQuery = { ...query, status: 'cancelled' };
+  const cancelledOrders = await Order.countDocuments(cancelledQuery);
+  
+  console.log('📊 [Order Stats] Final stats:', {
+    totalOrders: total,
+    totalRevenue,
+    todayOrders,
+    pendingOrders,
+    cancelledOrders
+  });
   
   return {
-    total,
+    totalOrders: total,
     count: total,
-    revenue: revenue[0]?.total || 0
+    totalRevenue: totalRevenue,
+    revenue: totalRevenue,
+    todayOrders,
+    pendingOrders,
+    cancelledOrders
   };
 };
 
@@ -205,12 +263,51 @@ const getOrdersForAdmin = async (adminId, filters = {}) => {
     Order.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit),
+      .limit(limit)
+      .lean(),
     Order.countDocuments(query)
   ]);
   
+  // Populate seller information for each item (for multi-seller orders)
+  const Admin = require('../models/Admin');
+  const SuperAdmin = require('../models/SuperAdmin');
+  
+  // Get all unique productCreatedBy IDs
+  const createdByIds = new Set();
+  orders.forEach(order => {
+    order.items?.forEach(item => {
+      if (item.productCreatedBy) {
+        createdByIds.add(item.productCreatedBy.toString());
+      }
+    });
+  });
+  
+  // Fetch all admins and superadmins
+  const [admins, superAdmins] = await Promise.all([
+    Admin.find({ _id: { $in: Array.from(createdByIds) } }).select('name email role').lean(),
+    SuperAdmin.find({ _id: { $in: Array.from(createdByIds) } }).select('name email role').lean()
+  ]);
+  
+  // Create a map of creators
+  const creatorsMap = new Map();
+  admins.forEach(a => creatorsMap.set(a._id.toString(), { name: a.name, email: a.email, role: a.role || 'admin' }));
+  superAdmins.forEach(sa => creatorsMap.set(sa._id.toString(), { name: sa.name, email: sa.email, role: 'superadmin' }));
+  
+  // Add seller info to each item
+  const ordersWithSellerInfo = orders.map(order => ({
+    ...order,
+    items: order.items?.map(item => {
+      const creator = item.productCreatedBy ? creatorsMap.get(item.productCreatedBy.toString()) : null;
+      return {
+        ...item,
+        productCreatedByName: creator ? creator.name : 'Unknown',
+        productCreatedByRole: creator ? creator.role : 'admin'
+      };
+    })
+  }));
+  
   return {
-    orders,
+    orders: ordersWithSellerInfo,
     pagination: {
       page,
       limit,
@@ -253,12 +350,51 @@ const getAllOrders = async (filters = {}) => {
     Order.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit),
+      .limit(limit)
+      .lean(),
     Order.countDocuments(query)
   ]);
   
+  // Populate seller information for each item
+  const Admin = require('../models/Admin');
+  const SuperAdmin = require('../models/SuperAdmin');
+  
+  // Get all unique productCreatedBy IDs
+  const createdByIds = new Set();
+  orders.forEach(order => {
+    order.items?.forEach(item => {
+      if (item.productCreatedBy) {
+        createdByIds.add(item.productCreatedBy.toString());
+      }
+    });
+  });
+  
+  // Fetch all admins and superadmins
+  const [admins, superAdmins] = await Promise.all([
+    Admin.find({ _id: { $in: Array.from(createdByIds) } }).select('name email role').lean(),
+    SuperAdmin.find({ _id: { $in: Array.from(createdByIds) } }).select('name email role').lean()
+  ]);
+  
+  // Create a map of creators
+  const creatorsMap = new Map();
+  admins.forEach(a => creatorsMap.set(a._id.toString(), { name: a.name, email: a.email, role: a.role || 'admin' }));
+  superAdmins.forEach(sa => creatorsMap.set(sa._id.toString(), { name: sa.name, email: sa.email, role: 'superadmin' }));
+  
+  // Add seller info to each item
+  const ordersWithSellerInfo = orders.map(order => ({
+    ...order,
+    items: order.items?.map(item => {
+      const creator = item.productCreatedBy ? creatorsMap.get(item.productCreatedBy.toString()) : null;
+      return {
+        ...item,
+        productCreatedByName: creator ? creator.name : 'Unknown',
+        productCreatedByRole: creator ? creator.role : 'admin'
+      };
+    })
+  }));
+  
   return {
-    orders,
+    orders: ordersWithSellerInfo,
     pagination: {
       page,
       limit,
