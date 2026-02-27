@@ -2,6 +2,7 @@ const productService = require('../services/productService');
 const { productEvents } = require('../events/productEvents');
 const jwt = require('jsonwebtoken');
 const { uploadImage, deleteImage, uploadMultipleImages } = require('../utils/imageUpload');
+const { generateSKU } = require('../models/Product');
 
 const list = async (req, res, next) => {
   try {
@@ -119,11 +120,21 @@ const create = async (req, res, next) => {
       createdByRole: creatorRole
     };
 
+    // Generate SKU before uploading images (so we can use it for folder structure)
+    if (!payload.sku && payload.category) {
+      payload.sku = generateSKU(payload.category);
+    }
+
     // Handle image upload if images are provided
     if (req.body.images && Array.isArray(req.body.images) && req.body.images.length > 0) {
       try {
-        // Pass category to upload images to correct folder
-        const uploadedImages = await uploadMultipleImages(req.body.images, req.body.category);
+        // Pass category, SKU, AND seller name to upload images to seller/SKU-based folder
+        const uploadedImages = await uploadMultipleImages(
+          req.body.images, 
+          req.body.category, 
+          payload.sku,
+          creatorName
+        );
         payload.images = uploadedImages.map(img => img.url);
         payload.thumbnailUrl = uploadedImages[0]?.url; // First image as thumbnail
         
@@ -160,9 +171,14 @@ const update = async (req, res, next) => {
       
       if (newImages.length > 0) {
         try {
-          // Pass category to upload images to correct folder
+          // Get existing product to retrieve SKU and seller name
+          const existingProduct = await productService.getProductById(req.params.id);
+          const sku = existingProduct?.sku || null;
+          const sellerName = existingProduct?.createdByName || 'Unknown';
+          
+          // Pass category, SKU, AND seller name to upload images to seller/SKU-based folder
           const category = req.body.category || updateData.category;
-          const uploadedImages = await uploadMultipleImages(newImages, category);
+          const uploadedImages = await uploadMultipleImages(newImages, category, sku, sellerName);
           const existingImages = req.body.images.filter(img => !img.startsWith('data:'));
           
           updateData.images = [...existingImages, ...uploadedImages.map(img => img.url)];
@@ -293,6 +309,17 @@ const getLowStock = async (req, res, next) => {
   }
 };
 
+const getTopSelling = async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const products = await productService.getTopSellingProducts(limit);
+    res.json(products);
+  } catch (err) {
+    console.error('❌ [Get Top Selling] Error:', err);
+    next(err);
+  }
+};
+
 module.exports = {
   list,
   getById,
@@ -302,6 +329,7 @@ module.exports = {
   remove,
   stream,
   getStats,
-  getLowStock
+  getLowStock,
+  getTopSelling
 };
 

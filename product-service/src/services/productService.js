@@ -1,4 +1,4 @@
-const { Product, getProductModel } = require('../models/Product');
+const { Product, getProductModel, generateSKU } = require('../models/Product');
 const Admin = require('../models/Admin');
 const SuperAdmin = require('../models/SuperAdmin');
 
@@ -174,8 +174,54 @@ const createProduct = async (payload) => {
     throw new Error('Category is required');
   }
   
-  // Get model for specific category
   const CategoryModel = getProductModel(payload.category);
+  
+  // Generate unique SKU if not provided
+  if (!payload.sku) {
+    let sku;
+    let isUnique = false;
+    
+    // Try up to 5 times to generate a unique SKU
+    for (let i = 0; i < 5; i++) {
+      sku = generateSKU(payload.category);
+      const existing = await CategoryModel.findOne({ sku });
+      if (!existing) {
+        isUnique = true;
+        break;
+      }
+    }
+    
+    if (!isUnique) {
+      throw new Error('Failed to generate unique SKU. Please try again.');
+    }
+    
+    payload.sku = sku;
+  } else {
+    // If SKU is provided, verify it's unique
+    const existing = await CategoryModel.findOne({ sku: payload.sku });
+    if (existing) {
+      // Regenerate if not unique
+      let sku;
+      let isUnique = false;
+      
+      for (let i = 0; i < 5; i++) {
+        sku = generateSKU(payload.category);
+        const existingCheck = await CategoryModel.findOne({ sku });
+        if (!existingCheck) {
+          isUnique = true;
+          break;
+        }
+      }
+      
+      if (!isUnique) {
+        throw new Error('Failed to generate unique SKU. Please try again.');
+      }
+      
+      payload.sku = sku;
+    }
+  }
+  
+  // Get model for specific category
   return CategoryModel.create(payload);
 };
 
@@ -340,6 +386,48 @@ const getLowStockProducts = async ({ role, userId, viewAsAdminId, threshold = 10
   return allLowStock.slice(0, 20);
 };
 
+const getTopSellingProducts = async (limit = 10) => {
+  const categories = ['menswear', 'womenwear', 'kidswear', 'winterwear', 'summerwear', 'footwear'];
+  const allProducts = [];
+  
+  for (const cat of categories) {
+    try {
+      const CategoryModel = getProductModel(cat);
+      // Get products sorted by rating and review count (proxy for popularity)
+      const products = await CategoryModel.find({ status: 'active' })
+        .sort({ 
+          averageRating: -1, 
+          totalReviews: -1,
+          createdAt: -1 
+        })
+        .limit(limit)
+        .lean();
+      
+      allProducts.push(...products);
+    } catch (err) {
+      console.log(`⚠️  [Top Selling] ${cat}: Collection not found or empty`);
+      continue;
+    }
+  }
+  
+  // Sort all products by rating and reviews
+  allProducts.sort((a, b) => {
+    // First by average rating
+    if (b.averageRating !== a.averageRating) {
+      return (b.averageRating || 0) - (a.averageRating || 0);
+    }
+    // Then by total reviews
+    if (b.totalReviews !== a.totalReviews) {
+      return (b.totalReviews || 0) - (a.totalReviews || 0);
+    }
+    // Finally by creation date (newer first)
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+  
+  // Return top N products
+  return allProducts.slice(0, limit);
+};
+
 module.exports = {
   listProducts,
   getProductById,
@@ -348,5 +436,6 @@ module.exports = {
   updateProduct,
   deleteProduct,
   getStats,
-  getLowStockProducts
+  getLowStockProducts,
+  getTopSellingProducts
 };

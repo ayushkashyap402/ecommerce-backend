@@ -475,7 +475,8 @@ const getPlatformAnalytics = async () => {
     totalRevenue,
     ordersByStatus,
     recentOrders,
-    topAdmins
+    topAdmins,
+    salesByCountry
   ] = await Promise.all([
     Order.countDocuments(),
     Order.distinct('userId').then(users => users.length),
@@ -511,8 +512,79 @@ const getPlatformAnalytics = async () => {
       },
       { $sort: { revenue: -1 } },
       { $limit: 10 }
+    ]),
+    // Sales by Country
+    Order.aggregate([
+      {
+        $group: {
+          _id: '$deliveryAddress.country',
+          totalSales: { $sum: '$pricing.total' },
+          orderCount: { $sum: 1 }
+        }
+      },
+      { $sort: { totalSales: -1 } },
+      { $limit: 10 }
     ])
   ]);
+  
+  // Calculate growth percentage for each country (comparing with previous period)
+  const salesByCountryWithGrowth = await Promise.all(
+    salesByCountry.map(async (country) => {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+      
+      const [currentPeriod, previousPeriod] = await Promise.all([
+        Order.aggregate([
+          {
+            $match: {
+              'deliveryAddress.country': country._id,
+              createdAt: { $gte: thirtyDaysAgo }
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$pricing.total' }
+            }
+          }
+        ]),
+        Order.aggregate([
+          {
+            $match: {
+              'deliveryAddress.country': country._id,
+              createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo }
+            }
+          },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$pricing.total' }
+            }
+          }
+        ])
+      ]);
+      
+      const currentTotal = currentPeriod[0]?.total || 0;
+      const previousTotal = previousPeriod[0]?.total || 0;
+      
+      let growth = 0;
+      if (previousTotal > 0) {
+        growth = ((currentTotal - previousTotal) / previousTotal) * 100;
+      } else if (currentTotal > 0) {
+        growth = 100;
+      }
+      
+      return {
+        country: country._id || 'Unknown',
+        totalSales: country.totalSales,
+        orderCount: country.orderCount,
+        growth: Math.round(growth * 10) / 10 // Round to 1 decimal
+      };
+    })
+  );
   
   return {
     totalOrders,
@@ -524,7 +596,8 @@ const getPlatformAnalytics = async () => {
       return acc;
     }, {}),
     recentOrders,
-    topAdmins
+    topAdmins,
+    salesByCountry: salesByCountryWithGrowth
   };
 };
 

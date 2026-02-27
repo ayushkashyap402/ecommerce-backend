@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema(
   {
+    sku: {
+      type: String,
+      unique: true,
+      sparse: true
+    },
     brand: {
       type: String,
       default: 'OutfitGo'
@@ -108,6 +113,32 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Function to generate unique SKU code
+// Format: CAT-YYYYMMDD-XXXXX (e.g., MEN-20260227-A1B2C)
+const generateSKU = (category) => {
+  const categoryPrefix = {
+    'menswear': 'MEN',
+    'womenwear': 'WOM',
+    'kidswear': 'KID',
+    'winterwear': 'WIN',
+    'summerwear': 'SUM',
+    'footwear': 'FOT'
+  };
+  
+  const prefix = categoryPrefix[category.toLowerCase()] || 'PRD';
+  const date = new Date();
+  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+  
+  // Generate random alphanumeric code (5 characters)
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let randomCode = '';
+  for (let i = 0; i < 5; i++) {
+    randomCode += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  
+  return `${prefix}-${dateStr}-${randomCode}`;
+};
+
 // Function to get model for specific category collection
 const getProductModel = (category) => {
   // Normalize category name for collection
@@ -127,5 +158,6 @@ const Product = mongoose.model('Product', productSchema);
 
 module.exports = {
   Product,
-  getProductModel
+  getProductModel,
+  generateSKU
 };

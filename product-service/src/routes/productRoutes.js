@@ -8,6 +8,7 @@ const router = express.Router();
 router.get('/stream', controller.stream);
 router.get('/stats', controller.getStats);
 router.get('/low-stock', controller.getLowStock);
+router.get('/top-selling', controller.getTopSelling);
 
 // Get single product by ID - BEFORE the catch-all / route
 router.get('/:id', controller.getById);
